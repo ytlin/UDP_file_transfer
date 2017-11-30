@@ -18,10 +18,10 @@
 #define SA struct sockaddr
 #define LISTENQ 1024
 
-int parseData(char *buf, int n)
+int getDataIndex(char *buf, int n)
 {
     char *ptr = strtok(buf, " ");
-    printf("[DEBUG] n, tn: %d, %d\n", n, n-strlen(ptr)-1);
+    //printf("[DEBUG] n, tn: %d, %d\n", n, n-strlen(ptr)-1);
     n -= strlen(ptr); // the seq number
     n--; //the space
     //ptr = strtok(NULL, "");
@@ -45,7 +45,7 @@ int checkACK(char *buf, int i)
     char tmp[BUF_MAX+20];
     strcpy(tmp, buf);
     ptr = strtok(tmp, " ");
-    printf("recvi: i => %d : %d\n",strtol(ptr, NULL, 10), i);
+    //printf("recvi: i => %d : %d\n",strtol(ptr, NULL, 10), i);
     int recvi = strtol(ptr, NULL, 10);
     if(recvi < i )
         return 2;
@@ -64,10 +64,10 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
     FILE *pfile;
     int file_size;
     char ack[5] = "ACK";
-    char dataPath[10] = "./data/";
+    char dataPath[10] = "./data/"; /* where the file saved*/
     len = clilen;
     n = recvfrom(sockfd, fileName, 50, 0, pcliaddr, &len);  // recv file name
-    fileName[n] = '\0';
+    fileName[n] = '\0'; /* add null terninal, like raw data to c string */
     sendto(sockfd, ack, strlen(ack), 0, pcliaddr, len);
     len = clilen;
     n = recvfrom(sockfd, fileLength, 50, 0, pcliaddr, &len); //recv file length
@@ -84,16 +84,16 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
     do {
         len = clilen;
         n = recvfrom(sockfd, recvbuf, BUF_MAX+20, 0, pcliaddr, &len);
-        printf("[DEBUG] raw data: %s\n", recvbuf);
+        //printf("[DEBUG] raw data: %s\n", recvbuf);
         int ret = checkACK(recvbuf, i);
         if(0 == ret){
             printf("Some error ocurr\n");
             continue;
         }else if(1 == ret){
             sendto(sockfd, ack, strlen(ack), 0, pcliaddr, len);
-            int newN = parseData(recvbuf, n);
-            fwrite(recvbuf+(n-newN), sizeof(char), newN, pfile);
-            file_size -= newN;
+            int dataN = getDataIndex(recvbuf, n);
+            fwrite(recvbuf+(n-dataN), sizeof(char), dataN, pfile);
+            file_size -= dataN;
             printf("%d: ACK(remaining: %d)\n", i, file_size);
             i++;
         }else if(2 == ret){
