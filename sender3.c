@@ -19,12 +19,6 @@
 #define SA struct sockaddr
 #define LISTENQ 1024
 
-static void sig_alrm(int signo)
-{
-    printf("TIMEOUT\n");
-    return;
-}
-
 void openFile(char *name, FILE **pfile)
 {
 	*pfile = fopen(name, "rb");
@@ -48,9 +42,8 @@ void sendFileName(int sockfd, struct sockaddr *pservaddr, int servlen, char *rec
     while(1)
     {
         sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
-        alarm(1);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
+            if(errno == EWOULDBLOCK){
                 printf("try to re-send: FILE NAME\n");
                 fflush(stdout);
                 continue;
@@ -60,7 +53,6 @@ void sendFileName(int sockfd, struct sockaddr *pservaddr, int servlen, char *rec
                 exit(2);
             }
         }else{
-            alarm(0);
             printf("Name exchange done.\n");
             fflush(stdout);
             return;
@@ -74,9 +66,8 @@ void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *r
     while(1)
     {
         sendto(sockfd, sendbuf, strlen(sendbuf), 0, pservaddr, servlen);/* send file length */ 
-        alarm(1);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
+            if(errno == EWOULDBLOCK){
                 printf("try to re-send: FILE SIZE\n");
                 fflush(stdout);
                 continue;
@@ -86,7 +77,6 @@ void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *r
                 exit(2);
             }
         }else{
-            alarm(0);
             printf("Size exchange done.\n");
             fflush(stdout);
             return;
@@ -99,9 +89,11 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
     char sendbuf[BUF_MAX+20], recvbuf[BUF_MAX+20]; // 20 is the space for header
     FILE *pfile;
     int file_size;
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     connect(sockfd, (struct sockaddr *) pservaddr, servlen);
-    signal(SIGALRM, sig_alrm); /* setup the my handler*/
-    siginterrupt(SIGALRM, 1); /* enable SIGALRM*/
    
     /* META data exchange */
     //sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
@@ -127,9 +119,8 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
         sendto(sockfd, sendbuf, n+headerLength, 0, pservaddr, servlen); /* send CONTENT of the file*/
         file_size -= n;
         nread = n;
-        alarm(1);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL)) < 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
+            if(errno == EWOULDBLOCK){
                 printf("try to re-send: %d\n", i);
                 fflush(stdout);
                 fseek(pfile, -nread, SEEK_CUR);
@@ -140,7 +131,6 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
                 exit(2);
             }
         }else{
-            alarm(0);
             recvbuf[n] = '\0';
             printf("%d: %s(remaining: %d)\n", i++, recvbuf, file_size);         
         }      

@@ -19,10 +19,15 @@
 #define SA struct sockaddr
 #define LISTENQ 1024
 
-static void sig_alrm(int signo)
+int readable_timeo(int fd, int sec)
 {
-    printf("TIMEOUT\n");
-    return;
+    fd_set rset;
+    struct timeval tv;
+    FD_ZERO(&rset);
+    FD_SET(fd, &rset);
+    tv.tv_sec = sec;
+    tv.tv_usec = 0;
+    return (select(fd+1, &rset, NULL, NULL, &tv));
 }
 
 void openFile(char *name, FILE **pfile)
@@ -48,23 +53,19 @@ void sendFileName(int sockfd, struct sockaddr *pservaddr, int servlen, char *rec
     while(1)
     {
         sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
-        alarm(1);
-        if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
-                printf("try to re-send: FILE NAME\n");
-                fflush(stdout);
-                continue;
-            }
-            else{
-                printf("recvfrom error\n");
-                exit(2);
-            }
-        }else{
-            alarm(0);
+        if(readable_timeo(sockfd, 1)==0)
+        {
+            //TIMEOUT
+            printf("try to re-send: FILE NAME\n");
+            fflush(stdout);
+            continue;
+        }else
+        {
+            n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL);
             printf("Name exchange done.\n");
             fflush(stdout);
             return;
-        }      
+        }
     }   
 }
 void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *recvbuf, char *sendbuf)
@@ -74,23 +75,18 @@ void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *r
     while(1)
     {
         sendto(sockfd, sendbuf, strlen(sendbuf), 0, pservaddr, servlen);/* send file length */ 
-        alarm(1);
-        if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
-                printf("try to re-send: FILE SIZE\n");
-                fflush(stdout);
-                continue;
-            }
-            else{
-                printf("recvfrom error\n");
-                exit(2);
-            }
-        }else{
-            alarm(0);
+        if(readable_timeo(sockfd, 1)==0)
+        {
+            printf("try to re-send: FILE SIZE\n");
+            fflush(stdout);
+            continue;
+        }else
+        {
+            n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL);
             printf("Size exchange done.\n");
             fflush(stdout);
             return;
-        }      
+        }
     }   
 }
 void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr, socklen_t servlen)
@@ -100,8 +96,6 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
     FILE *pfile;
     int file_size;
     connect(sockfd, (struct sockaddr *) pservaddr, servlen);
-    signal(SIGALRM, sig_alrm); /* setup the my handler*/
-    siginterrupt(SIGALRM, 1); /* enable SIGALRM*/
    
     /* META data exchange */
     //sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
@@ -127,23 +121,18 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
         sendto(sockfd, sendbuf, n+headerLength, 0, pservaddr, servlen); /* send CONTENT of the file*/
         file_size -= n;
         nread = n;
-        alarm(1);
-        if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL)) < 0){ /* TIMEOUT, re-send */
-            if(errno == EINTR){
-                printf("try to re-send: %d\n", i);
-                fflush(stdout);
-                fseek(pfile, -nread, SEEK_CUR);
-                file_size += nread;
-            }
-            else{
-                printf("recvfrom error\n");
-                exit(2);
-            }
-        }else{
-            alarm(0);
+        if(readable_timeo(sockfd, 1)==0)
+        {
+            printf("try to re-send: %d\n", i);
+            fflush(stdout);
+            fseek(pfile, -nread, SEEK_CUR);
+            file_size += nread;
+        }else
+        {
+            n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL);
             recvbuf[n] = '\0';
             printf("%d: %s(remaining: %d)\n", i++, recvbuf, file_size);         
-        }      
+        }
     }
 }
 
