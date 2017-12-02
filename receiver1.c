@@ -66,6 +66,7 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
     char ack[5] = "ACK";
     char dataPath[10] = "./data/"; /* where the file saved*/
     len = clilen;
+    printf("==========================\nREADY\n==========================\n");
     n = recvfrom(sockfd, fileName, 50, 0, pcliaddr, &len);  // recv file name
     fileName[n] = '\0'; /* add null terninal, like raw data to c string */
     sendto(sockfd, ack, strlen(ack), 0, pcliaddr, len);
@@ -79,7 +80,6 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
     printf("file length: %s\n", fileLength);
     fflush(stdout);
     file_size = strtol(fileLength, NULL, 10);
-    printf("file length: %d\n", file_size);
     int i = 1;
     do {
         len = clilen;
@@ -87,7 +87,8 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
         //printf("[DEBUG] raw data: %s\n", recvbuf);
         int ret = checkACK(recvbuf, i);
         if(0 == ret){
-            printf("Some error ocurr\n");
+            printf("Out of date ACK, send ACK anyway\n");
+            sendto(sockfd, ack, strlen(ack), 0, pcliaddr, len); 
             continue;
         }else if(1 == ret){
             sendto(sockfd, ack, strlen(ack), 0, pcliaddr, len);
@@ -102,10 +103,16 @@ void do_something(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
         }
     } while(file_size);
     fclose(pfile);
+    printf("==========================\nEND\n==========================\n");
 }
 
 int main(int argc, char **argv)
 {
+    if(argc != 2)
+    {
+        printf("Usage: %s <BIND_PORT>\n", argv[0]);
+        exit(1);
+    }
     int sockfd;
     int addrlen = sizeof(struct sockaddr_in);
     struct sockaddr_in servaddr, cliaddr;
@@ -120,9 +127,10 @@ int main(int argc, char **argv)
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(8889);
+    servaddr.sin_port = htons(atoi(argv[1]));
 
     bind(sockfd, (struct sockaddr *) &servaddr, addrlen);
-    do_something(sockfd, (struct sockaddr *) &cliaddr, addrlen);
+    while(1)
+        do_something(sockfd, (struct sockaddr *) &cliaddr, addrlen);
 
 }

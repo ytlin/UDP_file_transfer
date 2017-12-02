@@ -106,8 +106,8 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
     /* META data exchange */
     //sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
     //n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL); /* recv ACK */
-    sendFileName(sockfd, pservaddr, servlen, recvbuf, name);
     openFile(name, &pfile);
+    sendFileName(sockfd, pservaddr, servlen, recvbuf, name);
     file_size = filelength(&pfile);
     printf("%s\n", name);
     printf("%d\n", file_size);
