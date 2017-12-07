@@ -1,6 +1,8 @@
+MKDIR_P = mkdir -p
+DATA_DIR = data
 bins = sender1 receiver1 sender2 receiver2 sender3 receiver3
 
-all: sender1 receiver1 sender2 receiver2 sender3 receiver3
+all: sender1 receiver1 sender2 receiver2 sender3 receiver3 directories
 sender1: sender1.c
 	gcc sender1.c -o sender1
 receiver1: receiver1.c
@@ -13,6 +15,10 @@ sender3: sender3.c
 	gcc sender3.c -o sender3
 receiver3: receiver3.c
 	gcc receiver3.c -o receiver3
+directories: ${DATA_DIR}
+
+${DATA_DIR}:
+	${MKDIR_P} ${DATA_DIR}
 
 clean:
 	rm -f $(bins)
