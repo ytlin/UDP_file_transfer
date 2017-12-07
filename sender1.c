@@ -48,7 +48,7 @@ void sendFileName(int sockfd, struct sockaddr *pservaddr, int servlen, char *rec
     while(1)
     {
         sendto(sockfd, name, strlen(name), 0, pservaddr, servlen);/* send file name */ 
-        alarm(1);
+        ualarm(250000, 0);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
             if(errno == EINTR){
                 printf("try to re-send: FILE NAME\n");
@@ -60,7 +60,7 @@ void sendFileName(int sockfd, struct sockaddr *pservaddr, int servlen, char *rec
                 exit(2);
             }
         }else{
-            alarm(0);
+            ualarm(0, 0);
             printf("Name exchange done.\n");
             fflush(stdout);
             return;
@@ -74,7 +74,7 @@ void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *r
     while(1)
     {
         sendto(sockfd, sendbuf, strlen(sendbuf), 0, pservaddr, servlen);/* send file length */ 
-        alarm(1);
+        ualarm(250000, 0);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL))< 0){ /* TIMEOUT, re-send */
             if(errno == EINTR){
                 printf("try to re-send: FILE SIZE\n");
@@ -86,7 +86,7 @@ void sendFileLength(int sockfd, struct sockaddr *pservaddr, int servlen, char *r
                 exit(2);
             }
         }else{
-            alarm(0);
+            ualarm(0, 0);
             printf("Size exchange done.\n");
             fflush(stdout);
             return;
@@ -127,7 +127,7 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
         sendto(sockfd, sendbuf, n+headerLength, 0, pservaddr, servlen); /* send CONTENT of the file*/
         file_size -= n;
         nread = n;
-        alarm(1);
+        ualarm(250000, 0);
         if((n = recvfrom(sockfd, recvbuf, BUF_MAX, 0, NULL, NULL)) < 0){ /* TIMEOUT, re-send */
             if(errno == EINTR){
                 printf("try to re-send: %d\n", i);
@@ -140,7 +140,7 @@ void do_something(FILE *fp, char *name,  int sockfd, struct sockaddr *pservaddr,
                 exit(2);
             }
         }else{
-            alarm(0);
+            ualarm(0, 0);
             recvbuf[n] = '\0';
             printf("%d: %s(remaining: %d)\n", i++, recvbuf, file_size);         
         }      
